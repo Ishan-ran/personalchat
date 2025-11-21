@@ -14,11 +14,12 @@
     input.pass { padding: 15px; font-size: 18px; border-radius: 30px; border: 1px solid #ccc; text-align: center; margin-bottom: 15px; width: 80%; max-width: 300px; outline: none; }
     button.btn { padding: 12px 30px; background: #075e54; color: white; border: none; border-radius: 30px; font-size: 16px; cursor: pointer; font-weight: bold; }
     
-    /* --- ADMIN PANEL --- */
+    /* --- CONTACT LIST --- */
     #contact-screen { display: none; flex-direction: column; height: 100%; background: #fff; position: relative; }
     .app-header { background: #075e54; color: white; padding: 15px 20px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 1px 3px rgba(0,0,0,0.2); z-index: 10; }
     .header-content h1 { margin: 0; font-size: 20px; font-weight: 500; display: flex; align-items: center; gap: 8px; }
     .edit-self-btn { background: none; border: none; color: rgba(255,255,255,0.7); font-size: 16px; cursor: pointer; }
+    .edit-self-btn:hover { color: white; }
     .contact-list { flex: 1; overflow-y: auto; padding-bottom: 80px; }
     
     .contact { border-bottom: 1px solid #f0f0f0; padding: 15px; }
@@ -29,12 +30,14 @@
     .info { overflow: hidden; flex: 1; }
     .info h3 { margin: 0; font-size: 17px; color: #111; font-weight: 500; }
     .info p { margin: 4px 0 0; font-size: 14px; color: #666; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    
     .contact-actions { display: flex; align-items: center; gap: 5px; }
-    .action-icon { background: none; border: none; font-size: 18px; cursor: pointer; opacity: 0.5; padding: 8px; }
+    .action-icon { background: none; border: none; font-size: 18px; cursor: pointer; opacity: 0.5; padding: 8px; transition: opacity 0.2s; }
+    .action-icon:hover { opacity: 1; }
     .delete-btn { color: #ff4444; }
     .edit-btn { color: #075e54; }
     
-    /* Sub-Contacts (Spy Badges) */
+    /* Sub-Contacts */
     .sub-contacts { padding-left: 65px; display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
     .sub-badge { background: #e8f5e9; color: #075e54; border: 1px solid #075e54; border-radius: 12px; padding: 4px 10px; font-size: 11px; cursor: pointer; display: flex; align-items: center; gap: 5px; }
     .sub-badge:hover { background: #c8e6c9; }
@@ -52,8 +55,7 @@
     .header-avatar { width: 40px; height: 40px; background: #fff; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #075e54; font-size: 20px; }
     .header-info h4 { margin: 0; font-size: 16px; font-weight: 500; }
     .header-status { font-size: 12px; opacity: 0.8; display: block; }
-    #spy-indicator { display: none; background: #000; color: #0f0; font-size: 10px; padding: 2px 6px; border-radius: 4px; font-family: monospace; letter-spacing: 1px; border: 1px solid #0f0; }
-
+    
     #messages { flex: 1; overflow-y: auto; padding: 15px; display: flex; flex-direction: column; gap: 4px; scroll-behavior: smooth; z-index: 1; }
     .msg { padding: 6px 10px; border-radius: 7.5px; max-width: 75%; width: fit-content; font-size: 15px; position: relative; box-shadow: 0 1px 1px rgba(0,0,0,0.1); line-height: 1.3; cursor: pointer; user-select: none; display: flex; flex-direction: column; }
     .msg.me { align-self: flex-end; background: #dcf8c6; border-top-right-radius: 0; align-items: flex-end;}
@@ -78,10 +80,12 @@
     #imgInput, #wallpaperInput { display: none; }
     .action-btn { background: transparent; border: none; color: white; font-size: 20px; cursor: pointer; padding: 5px; }
 
+    /* Modal */
     #wp-modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 200; align-items: center; justify-content: center; }
     .wp-card { background: white; width: 80%; max-width: 300px; border-radius: 10px; padding: 20px; text-align: center; }
     .wp-btn { display: block; width: 100%; padding: 10px; margin: 10px 0; background: #eee; border: none; border-radius: 5px; cursor: pointer; }
     .wp-btn.primary { background: #075e54; color: white; font-weight: bold; }
+    .wp-btn.danger { background: #ff4444; color: white; font-weight: bold; }
   </style>
 </head>
 <body>
@@ -98,7 +102,7 @@
   <div id="contact-screen">
     <div class="app-header">
       <div class="header-content">
-        <h1>Chats <button class="edit-self-btn" onclick="renameSelf()" title="Rename Self">✎</button></h1>
+        <h1>Chats <button class="edit-self-btn" onclick="openProfileModal()" title="Edit Profile">✎</button></h1>
         <span style="font-size:14px; opacity:0.8;" id="header-role">Guest</span>
       </div>
     </div>
@@ -117,7 +121,7 @@
           <span class="header-status" id="chat-status">offline</span>
         </div>
       </div>
-      <div id="spy-indicator">👁️ SPYING</div>
+      <!-- No Spy Indicator - Stealth Mode -->
       <button class="action-btn" onclick="openWallpaperModal()">🖼️</button>
     </div>
     <div id="messages"></div>
@@ -138,22 +142,32 @@
     </div>
   </div>
 
-  <!-- Wallpaper Modal -->
+  <!-- Wallpaper/Options Modal -->
   <div id="wp-modal">
     <div class="wp-card">
       <h3>Wallpaper</h3>
       <button class="wp-btn primary" onclick="document.getElementById('wallpaperInput').click()">Upload</button>
       <button class="wp-btn" onclick="useLastPhoto()">Use Last Photo</button>
       <button class="wp-btn" onclick="resetWallpaper()">Reset</button>
-      <button class="wp-btn" onclick="closeWallpaperModal()">Cancel</button>
+      <button class="wp-btn close" onclick="closeWallpaperModal()">Cancel</button>
       <input type="file" id="wallpaperInput" accept="image/*" onchange="handleWallpaperUpload(this)">
+    </div>
+  </div>
+
+  <!-- Profile/Password Modal -->
+  <div id="profile-modal" style="display:none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 200; align-items: center; justify-content: center;">
+    <div class="wp-card">
+      <h3>Edit Profile</h3>
+      <button class="wp-btn primary" onclick="renameSelf()">Change Name</button>
+      <button class="wp-btn danger" onclick="changePassword()">Change Password</button>
+      <button class="wp-btn close" onclick="document.getElementById('profile-modal').style.display = 'none'">Cancel</button>
     </div>
   </div>
 
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-app.js";
     import { getAuth, signInWithEmailAndPassword, signInAnonymously } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-auth.js";
-    import { getFirestore, collection, addDoc, query, getDoc, getDocs, orderBy, onSnapshot, serverTimestamp, deleteDoc, doc, setDoc, updateDoc, deleteField } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore.js";
+    import { getFirestore, collection, addDoc, query, getDoc, getDocs, orderBy, onSnapshot, serverTimestamp, deleteDoc, doc, setDoc, updateDoc } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore.js";
 
     const firebaseConfig = {
       apiKey: "AIzaSyDznEmz6rxBJ_2QAgWIoEzWPBpM5QvocRQ",
@@ -176,7 +190,7 @@
     let isSpying = false;
     let guestData = null; 
     
-    let unsubscribeChat, unsubscribeUsers;
+    let unsubscribeChat, unsubscribeUsers, unsubscribeSettings, unsubscribePresence, presenceInterval;
     let lastImageSent, replyTarget;
 
     // --- 1. LOGIN ---
@@ -299,6 +313,96 @@
       container.appendChild(div);
     }
 
+    // --- RENAME & PASSWORD LOGIC ---
+    window.openProfileModal = () => document.getElementById('profile-modal').style.display = 'flex';
+    
+    window.renameSelf = async () => {
+      const newName = prompt("Enter new Display Name:", currentUserDisplay);
+      if (!newName || newName === currentUserDisplay) return;
+      try {
+        await updateDoc(doc(db, "users", currentUserId), { name: newName });
+        // Update directory for lookup
+        await deleteDoc(doc(db, "directory", currentUserDisplay.toLowerCase()));
+        await setDoc(doc(db, "directory", newName.toLowerCase()), { uid: currentUserId, name: newName });
+        
+        currentUserDisplay = newName;
+        document.getElementById('header-role').innerText = newName;
+        alert("Name updated!");
+        document.getElementById('profile-modal').style.display = 'none';
+      } catch(e) { alert("Update failed."); }
+    };
+
+    window.changePassword = async () => {
+      const newPass = prompt("Enter NEW Password (lowercase, no spaces):")?.toLowerCase().trim();
+      if(!newPass || newPass.length < 3) return alert("Password too short.");
+      
+      // Check if ID taken
+      const check = await getDoc(doc(db, "users", newPass));
+      if(check.exists()) return alert("Password already taken. Choose another.");
+
+      if(!confirm(`Change password to '${newPass}'? This will log you out.`)) return;
+
+      try {
+        // 1. Create New User Doc (Clone)
+        await setDoc(doc(db, "users", newPass), guestData);
+        await updateDoc(doc(db, "users", newPass), { created: serverTimestamp() }); // Update timestamp
+        
+        // 2. Copy Contacts
+        const oldContacts = await getDocs(collection(db, `users/${currentUserId}/contacts`));
+        oldContacts.forEach(async c => {
+           await addDoc(collection(db, `users/${newPass}/contacts`), c.data());
+        });
+
+        // 3. Update Directory
+        await updateDoc(doc(db, "directory", currentUserDisplay.toLowerCase()), { uid: newPass });
+
+        // 4. Delete Old User (Triggered last to be safe)
+        await deleteDoc(doc(db, "users", currentUserId));
+        
+        alert("Password Changed! Please login again.");
+        location.reload();
+      } catch(e) {
+        console.error(e);
+        alert("Error changing password. Try again.");
+      }
+    };
+
+    window.renameContact = async (e, contactId, oldName) => {
+      e.stopPropagation();
+      const newName = prompt("Rename chat:", oldName);
+      if (!newName) return;
+      await updateDoc(doc(db, `users/${currentUserId}/contacts`, contactId), { name: newName });
+    };
+
+    // --- ACTIONS ---
+    window.handleAddButton = async () => {
+      if(isAdmin) {
+        const name = prompt("New User Name:"); if (!name) return;
+        const password = prompt("Password (lowercase):").toLowerCase().trim(); if (!password) return;
+        const colors = ["#4ecdc4", "#ffe66d", "#1a535c", "#ff9f1c", "#ff6b6b"];
+        await setDoc(doc(db, "users", password), {
+          name: name, collection: "chats_" + Date.now(),
+          color: colors[Math.floor(Math.random()*colors.length)], created: serverTimestamp()
+        });
+        await setDoc(doc(db, "directory", name.toLowerCase()), { uid: password, name: name });
+      } else {
+        const targetName = prompt("Enter Name to add:"); if (!targetName) return;
+        try {
+          const dirSnap = await getDoc(doc(db, "directory", targetName.toLowerCase()));
+          if (!dirSnap.exists()) { alert("User not found."); return; }
+          const targetData = dirSnap.data();
+          const sharedRoomId = "private_" + [currentUserId, targetData.uid].sort().join("_");
+          const color = ["#4ecdc4", "#ffe66d", "#1a535c", "#ff9f1c", "#ff6b6b"][Math.floor(Math.random()*5)];
+          await addDoc(collection(db, `users/${currentUserId}/contacts`), { name: targetData.name, roomId: sharedRoomId, color: color });
+          await addDoc(collection(db, `users/${targetData.uid}/contacts`), { name: currentUserDisplay, roomId: sharedRoomId, color: color });
+          alert(`Added ${targetData.name}!`);
+        } catch (e) { alert("Error adding contact."); }
+      }
+    };
+
+    window.deleteUser = async (e, uid, name) => { e.stopPropagation(); if (confirm(`Delete User ${name}?`)) await deleteDoc(doc(db, "users", uid)); };
+    window.deleteContact = async (e, contactId) => { e.stopPropagation(); if (confirm("Remove this chat?")) await deleteDoc(doc(db, `users/${currentUserId}/contacts`, contactId)); };
+
     // --- CHAT LOGIC ---
     window.openChat = (roomId, name, color, asSpy) => {
       currentCollection = roomId;
@@ -311,11 +415,8 @@
       
       if (isSpying) {
         document.getElementById('input-area').classList.add('hidden');
-        // Removed visual indicator for stealth
-        document.getElementById('spy-indicator').style.display = 'none'; 
       } else {
         document.getElementById('input-area').classList.remove('hidden');
-        document.getElementById('spy-indicator').style.display = 'none';
       }
       loadChat(); loadWallpaper();
     };
@@ -376,57 +477,13 @@
       });
     }
 
-    // RENAME & ACTIONS
-    window.renameSelf = async () => {
-      const newName = prompt("Enter new Display Name:", currentUserDisplay);
-      if (!newName || newName === currentUserDisplay) return;
-      try {
-        await updateDoc(doc(db, "users", currentUserId), { name: newName });
-        await deleteDoc(doc(db, "directory", currentUserDisplay.toLowerCase()));
-        await setDoc(doc(db, "directory", newName.toLowerCase()), { uid: currentUserId, name: newName });
-        currentUserDisplay = newName;
-        document.getElementById('header-role').innerText = newName;
-        alert("Name updated!");
-      } catch(e) { alert("Update failed."); }
-    };
-    window.renameContact = async (e, contactId, oldName) => {
-      e.stopPropagation();
-      const newName = prompt("Rename chat:", oldName);
-      if (!newName) return;
-      await updateDoc(doc(db, `users/${currentUserId}/contacts`, contactId), { name: newName });
-    };
-
-    window.handleAddButton = async () => {
-      if(isAdmin) {
-        const name = prompt("New User Name:"); if (!name) return;
-        const password = prompt("Password (lowercase):").toLowerCase().trim(); if (!password) return;
-        const colors = ["#4ecdc4", "#ffe66d", "#1a535c", "#ff9f1c", "#ff6b6b"];
-        await setDoc(doc(db, "users", password), {
-          name: name, collection: "chats_" + Date.now(),
-          color: colors[Math.floor(Math.random()*colors.length)], created: serverTimestamp()
-        });
-        await setDoc(doc(db, "directory", name.toLowerCase()), { uid: password, name: name });
-      } else {
-        const targetName = prompt("Enter Name to add:"); if (!targetName) return;
-        try {
-          const dirSnap = await getDoc(doc(db, "directory", targetName.toLowerCase()));
-          if (!dirSnap.exists()) { alert("User not found."); return; }
-          const targetData = dirSnap.data();
-          const sharedRoomId = "private_" + [currentUserId, targetData.uid].sort().join("_");
-          const color = ["#4ecdc4", "#ffe66d", "#1a535c", "#ff9f1c", "#ff6b6b"][Math.floor(Math.random()*5)];
-          await addDoc(collection(db, `users/${currentUserId}/contacts`), { name: targetData.name, roomId: sharedRoomId, color: color });
-          await addDoc(collection(db, `users/${targetData.uid}/contacts`), { name: currentUserDisplay, roomId: sharedRoomId, color: color });
-          alert(`Added ${targetData.name}!`);
-        } catch (e) { alert("Error adding contact."); }
-      }
-    };
-
-    window.deleteUser = async (e, uid, name) => { e.stopPropagation(); if (confirm(`Delete User ${name}?`)) await deleteDoc(doc(db, "users", uid)); };
-    window.deleteContact = async (e, contactId) => { e.stopPropagation(); if (confirm("Remove this chat?")) await deleteDoc(doc(db, `users/${currentUserId}/contacts`, contactId)); };
-
     // Utils
     window.startReply = (sender, text) => { replyTarget = { sender, text }; document.getElementById('reply-preview').style.display = 'flex'; document.getElementById('reply-to-name').textContent = "Replying to " + sender; document.getElementById('reply-to-text').textContent = text; document.getElementById('txt').focus(); };
     window.cancelReply = () => { replyTarget = null; document.getElementById('reply-preview').style.display = 'none'; };
+    function initPresence() { 
+        if (isAdmin && isSpying) { document.getElementById('chat-status').innerText = "Secret Mode"; return; } 
+        document.getElementById('chat-status').innerText = "Secure"; 
+    }
     function loadWallpaper() { 
         getDoc(doc(db, currentCollection, "_settings")).then(docSnap => {
             const screen = document.getElementById('chat-screen'); 
