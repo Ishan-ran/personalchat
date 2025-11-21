@@ -6,7 +6,7 @@
   <title>Secure Chats</title>
   <style>
     /* --- CORE THEME --- */
-    /* FIXED: height: 100dvh forces it to fit within mobile browser bars */
+    /* height: 100dvh forces it to fit within mobile browser bars */
     body { margin: 0; background: #ece5dd; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; height: 100vh; height: 100dvh; display: flex; flex-direction: column; overflow: hidden; }
     
     /* --- LOCK SCREEN --- */
@@ -49,7 +49,7 @@
     .time { font-size: 10px; color: #999; margin-top: 2px; margin-left: 5px; min-width: 40px; text-align: right;}
     .msg img { max-width: 100%; border-radius: 5px; margin-bottom: 2px; display: block; min-width: 50px;}
 
-    /* FIXED: Added padding-bottom env for mobile gesture bars */
+    /* Input Area with Safe Area padding */
     #input-area { display: flex; padding: 8px; background: #f0f0f0; gap: 8px; align-items: flex-end; min-height: 50px; box-sizing: border-box; z-index: 1; padding-bottom: max(8px, env(safe-area-inset-bottom)); }
     #txt { flex: 1; padding: 10px 15px; border-radius: 20px; border: none; outline: none; font-size: 15px; background: white; resize: none; font-family: inherit; height: 22px; max-height: 120px; overflow-y: auto; line-height: 20px;}
     .icon-btn { background: transparent; color: #555; width: 40px; height: 40px; border-radius: 50%; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 22px; transition: 0.2s; flex-shrink: 0;}
@@ -92,7 +92,7 @@
         <div class="header-avatar" id="chat-avatar">👤</div>
         <div class="header-info">
           <h4 id="chat-name">Name</h4>
-          <span class="header-status" id="chat-status">online</span>
+          <span class="header-status" id="chat-status">offline</span>
         </div>
       </div>
       <button class="action-btn" onclick="openWallpaperModal()">🖼️</button>
@@ -120,7 +120,7 @@
 
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-app.js";
-    import { getAuth, signInWithEmailAndPassword, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-auth.js";
+    import { getAuth, signInWithEmailAndPassword, signInAnonymously } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-auth.js";
     import { getFirestore, collection, addDoc, query, where, getDoc, orderBy, onSnapshot, serverTimestamp, deleteDoc, doc, setDoc } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore.js";
 
     const firebaseConfig = {
@@ -144,9 +144,11 @@
     let unsubscribeChat = null;
     let unsubscribeUsers = null;
     let unsubscribeSettings = null;
+    let unsubscribePresence = null;
+    let presenceInterval = null;
     let lastImageSent = null;
 
-    // --- 1. SECURE LOGIN ---
+    // --- 1. LOGIN ---
     window.attemptLogin = async () => {
       const p = document.getElementById('pass').value.trim();
       const lock = document.getElementById('lock-screen');
@@ -163,7 +165,6 @@
             await signInAnonymously(auth);
             const docRef = doc(db, "users", p.toLowerCase()); 
             const docSnap = await getDoc(docRef);
-
             if (docSnap.exists()) {
               isAdmin = false;
               unlock(lock);
@@ -188,14 +189,11 @@
     function startAdminMode() {
       document.getElementById('contact-screen').style.display = 'flex';
       const q = query(collection(db, "users"), orderBy("created", "desc"));
-      
       unsubscribeUsers = onSnapshot(q, (snap) => {
         const list = document.getElementById('contact-list-container');
         list.innerHTML = "";
-        
         snap.forEach(docSnap => {
           const u = docSnap.data();
-          // Safe Element Creation
           const div = document.createElement('div');
           div.className = 'contact';
           div.innerHTML = `
@@ -204,13 +202,10 @@
               <div class="info"><h3></h3><p></p></div>
             </div>
             <button class="delete-btn">🗑️</button>`;
-          
-          // SAFE TEXT INSERTION
           div.querySelector('h3').textContent = u.name;
           div.querySelector('p').textContent = `Pass: ${docSnap.id}`;
           div.querySelector('.contact-left').onclick = () => openChatAsAdmin(u.collection, u.name, u.color);
           div.querySelector('.delete-btn').onclick = () => deleteUser(docSnap.id, u.name);
-          
           list.appendChild(div);
         });
       });
@@ -221,20 +216,13 @@
       if (!name) return;
       const password = prompt("Password (lowercase):").toLowerCase().trim();
       if (!password) return;
-      
       const colors = ["#4ecdc4", "#ffe66d", "#1a535c", "#ff9f1c", "#ff6b6b"];
       await setDoc(doc(db, "users", password), {
-        name: name, 
-        collection: "chats_" + Date.now(),
-        color: colors[Math.floor(Math.random()*colors.length)], 
-        created: serverTimestamp()
+        name: name, collection: "chats_" + Date.now(),
+        color: colors[Math.floor(Math.random()*colors.length)], created: serverTimestamp()
       });
     };
-
-    window.deleteUser = async (uid, name) => {
-      if (confirm(`Delete ${name}? This cannot be undone.`)) await deleteDoc(doc(db, "users", uid));
-    };
-
+    window.deleteUser = async (uid, name) => { if (confirm(`Delete ${name}?`)) await deleteDoc(doc(db, "users", uid)); };
     window.openChatAsAdmin = (coll, name, color) => {
       setupChatUI(coll, "Ishan", name, color);
       document.getElementById('back-btn').style.display = 'block';
@@ -260,17 +248,20 @@
       
       loadChat();
       loadWallpaper();
+      initPresence(); // START THE PRESENCE ENGINE
     }
 
     window.goBack = () => {
       if (unsubscribeChat) unsubscribeChat();
       if (unsubscribeSettings) unsubscribeSettings();
+      if (unsubscribePresence) unsubscribePresence();
+      if (presenceInterval) clearInterval(presenceInterval);
       document.getElementById('chat-screen').style.display = 'none';
       document.getElementById('contact-screen').style.display = 'flex';
       currentCollection = null;
     };
 
-    // --- 4. CHAT & WALLPAPER (SECURE RENDER) ---
+    // --- 4. CHAT ENGINE ---
     function loadChat() {
       const q = query(collection(db, currentCollection), orderBy("time", "asc"));
       unsubscribeChat = onSnapshot(q, (snap) => {
@@ -278,38 +269,64 @@
         div.innerHTML = ""; 
         snap.forEach(docSnap => {
           const d = docSnap.data();
-          if(docSnap.id === '_settings') return;
+          if(docSnap.id.startsWith('_')) return; // Skip settings/status docs
           if(!d.time) return;
-          
           if ((new Date() - d.time.toDate())/36e5 > 24) { deleteDoc(doc(db, currentCollection, docSnap.id)); return; }
           if (d.type === 'image') lastImageSent = d.image;
-
           const isMe = d.sender === currentUserDisplay;
           const tStr = d.time.toDate().getHours() + ":" + String(d.time.toDate().getMinutes()).padStart(2,'0');
-          
-          // --- SECURE MESSAGE CREATION (NO INNERHTML FOR TEXT) ---
           const msgDiv = document.createElement('div');
           msgDiv.className = `msg ${isMe ? 'me' : 'her'}`;
           msgDiv.ondblclick = () => deleteMsg(docSnap.id);
-          
           if (d.type === 'image') {
-            // Images are safe to set via innerHTML if source is strictly dataURL or controlled
             msgDiv.innerHTML = `<img src="${d.image}" onload="scrollToBottom()">`;
           } else {
             const contentDiv = document.createElement('div');
             contentDiv.className = 'msg-content';
-            contentDiv.textContent = d.text; // <--- THIS PREVENTS XSS/REDIRECTS
+            contentDiv.textContent = d.text;
             msgDiv.appendChild(contentDiv);
           }
-          
           const timeSpan = document.createElement('span');
           timeSpan.className = 'time';
           timeSpan.textContent = tStr;
           msgDiv.appendChild(timeSpan);
-
           div.appendChild(msgDiv);
         });
         scrollToBottom(); setTimeout(scrollToBottom, 200);
+      });
+    }
+
+    // --- 5. REAL PRESENCE ENGINE ---
+    function initPresence() {
+      // Determine my ID and Partner's ID
+      const myStatusDoc = isAdmin ? "_status_host" : "_status_guest";
+      const partnerStatusDoc = isAdmin ? "_status_guest" : "_status_host";
+      
+      // 1. Heartbeat: Update my status every 60s
+      const updateHeartbeat = () => {
+        setDoc(doc(db, currentCollection, myStatusDoc), { lastSeen: serverTimestamp() });
+      };
+      updateHeartbeat(); // Call immediately
+      presenceInterval = setInterval(updateHeartbeat, 60000);
+
+      // 2. Listener: Watch partner's status
+      unsubscribePresence = onSnapshot(doc(db, currentCollection, partnerStatusDoc), (docSnap) => {
+        const statusLabel = document.getElementById('chat-status');
+        if (docSnap.exists()) {
+          const lastSeen = docSnap.data().lastSeen?.toDate();
+          if (lastSeen) {
+            const diff = (new Date() - lastSeen) / 1000; // seconds
+            if (diff < 120) {
+               statusLabel.innerText = "online";
+               statusLabel.style.color = "#90ee90"; // Light green
+            } else {
+               statusLabel.innerText = "offline";
+               statusLabel.style.color = "rgba(255,255,255,0.7)";
+            }
+          }
+        } else {
+          statusLabel.innerText = "offline";
+        }
       });
     }
 
@@ -335,7 +352,6 @@
         txt.value = ""; txt.style.height = '22px'; txt.focus();
       }
     };
-
     window.handleImageUpload = (input) => {
       const file = input.files[0];
       if (!file) return;
@@ -344,14 +360,12 @@
       });
       input.value = ''; 
     };
-
     window.handleWallpaperUpload = (input) => {
       const file = input.files[0];
       if(!file) return;
       processImage(file, (base64) => setWallpaper(base64));
       input.value = ''; document.getElementById('wp-modal').style.display = 'none';
     };
-
     function processImage(file, callback) {
       const reader = new FileReader();
       reader.onload = (e) => {
@@ -368,11 +382,7 @@
       }
       reader.readAsDataURL(file);
     }
-
-    async function setWallpaper(url) {
-      await setDoc(doc(db, currentCollection, "_settings"), { wallpaper: url }, { merge: true });
-    }
-    
+    async function setWallpaper(url) { await setDoc(doc(db, currentCollection, "_settings"), { wallpaper: url }, { merge: true }); }
     window.useLastPhoto = () => { if(lastImageSent) { setWallpaper(lastImageSent); closeWallpaperModal(); } else alert("No photos!"); };
     window.resetWallpaper = async () => { await setDoc(doc(db, currentCollection, "_settings"), { wallpaper: null }, { merge: true }); closeWallpaperModal(); };
     window.openWallpaperModal = () => document.getElementById('wp-modal').style.display = 'flex';
