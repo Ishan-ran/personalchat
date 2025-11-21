@@ -120,7 +120,7 @@
 
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-app.js";
-    import { getAuth, signInWithEmailAndPassword, signInAnonymously } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-auth.js";
+    import { getAuth, signInWithEmailAndPassword, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-auth.js";
     import { getFirestore, collection, addDoc, query, where, getDoc, orderBy, onSnapshot, serverTimestamp, deleteDoc, doc, setDoc } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore.js";
 
     const firebaseConfig = {
@@ -162,9 +162,16 @@
             startAdminMode();
           })
           .catch(async (error) => {
+            // DEBUG: Alert the specific Admin error so you know why it failed
+            if (p === "123456" || p === "Ishan123") {
+                alert("Admin Login Failed:\n" + error.code + "\n" + error.message);
+            }
+
+            // Fallback to Guest Login
             await signInAnonymously(auth);
             const docRef = doc(db, "users", p.toLowerCase()); 
             const docSnap = await getDoc(docRef);
+
             if (docSnap.exists()) {
               isAdmin = false;
               unlock(lock);
