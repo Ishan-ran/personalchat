@@ -21,37 +21,46 @@
     
     #messages { flex: 1; overflow-y: auto; padding: 15px; display: flex; flex-direction: column; gap: 6px; scroll-behavior: smooth; }
     
-    /* Bubble Styles - FIXED SIZING */
+    /* Bubble Styles - FIXED SPACING */
     .msg { 
-      padding: 8px 12px; 
+      padding: 6px 10px; /* Tighter padding */
       border-radius: 7.5px; 
       max-width: 75%; 
-      width: fit-content; /* Crucial fix for bubble size */
+      width: fit-content; 
       font-size: 15px; 
       position: relative; 
-      word-wrap: break-word; 
-      word-break: break-word;
       box-shadow: 0 1px 1px rgba(0,0,0,0.1); 
-      line-height: 1.4; 
+      line-height: 1.3; 
       cursor: pointer; 
       user-select: none; 
-      white-space: pre-wrap; 
+      
+      /* FLEX LAYOUT to kill ghost spaces */
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end; /* Aligns time to right */
     }
-    .msg:hover { opacity: 0.9; }
     
-    /* Colors & Alignment */
+    /* The actual text inside the bubble */
+    .msg-content {
+      align-self: flex-start; /* Text aligns left */
+      word-wrap: break-word; 
+      word-break: break-word;
+      white-space: pre-wrap; /* Allows your newlines */
+      margin-bottom: 2px;
+    }
+
+    .msg:hover { opacity: 0.9; }
     .msg.me { align-self: flex-end; background: #dcf8c6; border-top-right-radius: 0; color: #000; }
     .msg.her { align-self: flex-start; background: #fff; border-top-left-radius: 0; color: #000; }
     
-    .time { font-size: 10px; color: #999; text-align: right; margin-top: 4px; display: block; pointer-events: none;}
+    .time { font-size: 10px; color: #999; pointer-events: none; line-height: 1;}
 
     /* Image Styles */
-    .msg img { max-width: 100%; border-radius: 5px; margin-bottom: 5px; display: block; min-width: 50px;}
+    .msg img { max-width: 100%; border-radius: 5px; margin-bottom: 2px; display: block; min-width: 50px;}
 
     /* Input Area */
     #input-area { display: flex; padding: 8px; background: #f0f0f0; gap: 8px; align-items: flex-end; min-height: 50px; box-sizing: border-box;}
     
-    /* TEXTAREA FIX */
     #txt { flex: 1; padding: 10px 15px; border-radius: 20px; border: none; outline: none; font-size: 15px; background: white; resize: none; font-family: inherit; height: 22px; max-height: 120px; overflow-y: auto; line-height: 20px;}
     
     .icon-btn { background: transparent; color: #555; width: 40px; height: 40px; border-radius: 50%; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 22px; transition: 0.2s; flex-shrink: 0;}
@@ -59,14 +68,11 @@
     .send-btn { background: #075e54; color: white; margin-bottom: 1px; width: 40px; height: 40px; font-size: 18px;} 
     .send-btn:hover { background: #064b42; }
 
-    /* Hidden file input */
     #imgInput { display: none; }
-
   </style>
 </head>
 <body>
 
-  <!-- LOCK SCREEN -->
   <div id="lock">
     <h2 style="color:#444; margin-bottom:20px;">🔒 Restricted Access</h2>
     <p style="color:#666; margin-bottom:20px; font-size: 14px;">Enter your secret pass:</p>
@@ -75,7 +81,6 @@
     <p id="error" style="color:red; margin-top:10px; opacity:0; font-size:14px;">Wrong password!</p>
   </div>
 
-  <!-- CHAT AREA -->
   <div id="chat-wrap">
     <header>
       <div style="display:flex; align-items:center; gap:10px;">
@@ -88,21 +93,16 @@
       <button onclick="location.reload()" style="background:transparent; border:none; color:rgba(255,255,255,0.9); cursor:pointer; font-size:13px; padding: 5px;">Logout</button>
     </header>
     
-    <div id="messages">
-      <!-- Messages appear here -->
-    </div>
+    <div id="messages"></div>
     
     <div id="input-area">
       <button class="icon-btn" onclick="document.getElementById('imgInput').click()" style="margin-bottom:2px">📷</button>
       <input type="file" id="imgInput" accept="image/*" onchange="handleImageUpload(this)">
-      
       <textarea id="txt" placeholder="Type a message..." rows="1"></textarea>
-      
       <button class="icon-btn send-btn" onclick="send()">➤</button>
     </div>
   </div>
 
-  <!-- FIREBASE ENGINE -->
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-app.js";
     import { getFirestore, collection, addDoc, query, orderBy, onSnapshot, serverTimestamp, deleteDoc, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore.js";
@@ -127,29 +127,16 @@
 
     window.attemptLogin = () => {
       const p = document.getElementById('pass').value.toLowerCase().trim();
-      const lock = document.getElementById('lock');
-      
-      if (p === PASS_ISHAN) {
-        currentUser = "Ishan";
-        otherUser = "Her";
-      } else if (p === PASS_HER) {
-        currentUser = "Her";
-        otherUser = "Ishan";
-      } else {
+      if (p === PASS_ISHAN) { currentUser = "Ishan"; otherUser = "Her"; } 
+      else if (p === PASS_HER) { currentUser = "Her"; otherUser = "Ishan"; } 
+      else {
         const err = document.getElementById('error');
-        err.style.opacity = '1';
-        setTimeout(() => err.style.opacity = '0', 2000);
-        return;
+        err.style.opacity = '1'; setTimeout(() => err.style.opacity = '0', 2000); return;
       }
 
       document.getElementById('header-title').innerText = otherUser;
-      lock.style.opacity = '0';
-      setTimeout(() => {
-        lock.style.display = 'none';
-        document.getElementById('chat-wrap').style.display = 'flex';
-        scrollToBottom();
-      }, 500);
-
+      document.getElementById('lock').style.display = 'none';
+      document.getElementById('chat-wrap').style.display = 'flex';
       loadChat();
       startPresenceSystem();
     };
@@ -157,19 +144,12 @@
     window.send = async () => {
       const txt = document.getElementById('txt');
       const textVal = txt.value.trim(); 
-      
       if(textVal) {
         try {
           await addDoc(collection(db, "chats"), {
-            text: textVal,
-            sender: currentUser,
-            type: 'text',
-            time: serverTimestamp()
+            text: textVal, sender: currentUser, type: 'text', time: serverTimestamp()
           });
-          txt.value = "";
-          txt.style.height = '22px'; 
-          txt.focus();
-          updateMyStatus(); 
+          txt.value = ""; txt.style.height = '22px'; txt.focus(); updateMyStatus(); 
         } catch(e) { console.error(e); }
       }
     };
@@ -186,15 +166,11 @@
           const ctx = canvas.getContext('2d');
           const maxWidth = 800;
           const scaleSize = maxWidth / img.width;
-          canvas.width = maxWidth;
-          canvas.height = img.height * scaleSize;
+          canvas.width = maxWidth; canvas.height = img.height * scaleSize;
           ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
           const dataUrl = canvas.toDataURL('image/jpeg', 0.7); 
           addDoc(collection(db, "chats"), {
-            image: dataUrl,
-            sender: currentUser,
-            type: 'image',
-            time: serverTimestamp()
+            image: dataUrl, sender: currentUser, type: 'image', time: serverTimestamp()
           });
         }
       }
@@ -203,9 +179,7 @@
     };
 
     window.deleteMsg = async (id) => {
-      if(confirm("Delete this message?")) {
-        try { await deleteDoc(doc(db, "chats", id)); } catch(e) {}
-      }
+      if(confirm("Delete this message?")) { try { await deleteDoc(doc(db, "chats", id)); } catch(e) {} }
     };
 
     function startPresenceSystem() {
@@ -213,70 +187,43 @@
       setInterval(updateMyStatus, 60000);
       onSnapshot(doc(db, "status", otherUser), (docSnap) => {
         if (docSnap.exists()) {
-          const lastSeen = docSnap.data().lastSeen.toDate();
-          const now = new Date();
-          const diff = (now - lastSeen) / 1000; 
-          const statusSpan = document.getElementById('status-indicator');
-          if (diff < 120) { 
-            statusSpan.innerText = "Online 🟢";
-            statusSpan.style.color = "#cfc";
-          } else {
-            statusSpan.innerText = "Offline";
-            statusSpan.style.color = "rgba(255,255,255,0.7)";
-          }
+          const diff = (new Date() - docSnap.data().lastSeen.toDate()) / 1000; 
+          const el = document.getElementById('status-indicator');
+          if (diff < 120) { el.innerText = "Online 🟢"; el.style.color = "#cfc"; } 
+          else { el.innerText = "Offline"; el.style.color = "rgba(255,255,255,0.7)"; }
         }
       });
     }
 
-    async function updateMyStatus() {
-      try {
-        await setDoc(doc(db, "status", currentUser), { lastSeen: serverTimestamp() });
-      } catch(e) {}
-    }
+    async function updateMyStatus() { try { await setDoc(doc(db, "status", currentUser), { lastSeen: serverTimestamp() }); } catch(e) {} }
 
     function loadChat() {
       const q = query(collection(db, "chats"), orderBy("time", "asc"));
-      
       onSnapshot(q, (snap) => {
         const div = document.getElementById('messages');
         div.innerHTML = ""; 
-        
         snap.forEach(docSnap => {
           const d = docSnap.data();
           const id = docSnap.id;
           if(!d.time) return; 
 
-          // AUTO DELETE > 24 HRS
-          const now = new Date();
-          const msgTime = d.time.toDate();
-          const hoursOld = (now - msgTime) / 1000 / 60 / 60;
-          if (hoursOld > 24) {
-            deleteDoc(doc(db, "chats", id));
-            return;
-          }
+          if ((new Date() - d.time.toDate()) / 1000 / 60 / 60 > 24) { deleteDoc(doc(db, "chats", id)); return; }
           
           const isMe = d.sender === currentUser;
-          const tStr = msgTime.getHours() + ":" + String(msgTime.getMinutes()).padStart(2,'0');
+          const tStr = d.time.toDate().getHours() + ":" + String(d.time.toDate().getMinutes()).padStart(2,'0');
           
-          let content = "";
+          let contentHtml = "";
           if (d.type === 'image') {
-             // Added onload to scroll when image finishes loading
-             content = `<img src="${d.image}" alt="Image" onload="scrollToBottom()">`;
+             contentHtml = `<img src="${d.image}" onload="scrollToBottom()">`;
           } else {
-             // TRIM FIX: Removes weird huge spaces from old messages
-             content = d.text ? d.text.trim() : ""; 
+             // NOTE: I removed all whitespace in the HTML string below to fix your bug
+             contentHtml = `<span class="msg-content">${d.text ? d.text.trim() : ""}</span>`;
           }
 
-          div.innerHTML += `
-            <div class="msg ${isMe ? 'me' : 'her'}" ondblclick="deleteMsg('${id}')">
-              ${content}
-              <span class="time">${tStr}</span>
-            </div>`;
+          // IMPORTANT: The HTML string is now condensed to prevent ghost whitespace
+          div.innerHTML += `<div class="msg ${isMe ? 'me' : 'her'}" ondblclick="deleteMsg('${id}')">${contentHtml}<span class="time">${tStr}</span></div>`;
         });
-        
-        // Scroll immediately AND after a short delay to fix the "Manual Scroll" issue
-        scrollToBottom();
-        setTimeout(scrollToBottom, 200);
+        scrollToBottom(); setTimeout(scrollToBottom, 200);
       });
     }
 
@@ -285,24 +232,15 @@
       div.scrollTop = div.scrollHeight;
     }
 
-    document.getElementById('pass').addEventListener('keydown', (e) => {
-      if(e.key === 'Enter') attemptLogin();
-    });
-
+    document.getElementById('pass').addEventListener('keydown', (e) => { if(e.key === 'Enter') attemptLogin(); });
     const txtInput = document.getElementById('txt');
     txtInput.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter' && !e.shiftKey) {
-        e.preventDefault();
-        send();
-      }
+      if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); }
     });
-    
     txtInput.addEventListener('input', function() {
-      this.style.height = 'auto';
-      this.style.height = (this.scrollHeight) + 'px';
+      this.style.height = 'auto'; this.style.height = (this.scrollHeight) + 'px';
       if(this.value === '') this.style.height = '22px';
     });
-
   </script>
 </body>
 </html>
