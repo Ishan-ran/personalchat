@@ -14,12 +14,11 @@
     input.pass { padding: 15px; font-size: 18px; border-radius: 30px; border: 1px solid #ccc; text-align: center; margin-bottom: 15px; width: 80%; max-width: 300px; outline: none; }
     button.btn { padding: 12px 30px; background: #075e54; color: white; border: none; border-radius: 30px; font-size: 16px; cursor: pointer; font-weight: bold; }
     
-    /* --- CONTACT LIST --- */
+    /* --- ADMIN PANEL --- */
     #contact-screen { display: none; flex-direction: column; height: 100%; background: #fff; position: relative; }
     .app-header { background: #075e54; color: white; padding: 15px 20px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 1px 3px rgba(0,0,0,0.2); z-index: 10; }
     .header-content h1 { margin: 0; font-size: 20px; font-weight: 500; display: flex; align-items: center; gap: 8px; }
     .edit-self-btn { background: none; border: none; color: rgba(255,255,255,0.7); font-size: 16px; cursor: pointer; }
-    .edit-self-btn:hover { color: white; }
     .contact-list { flex: 1; overflow-y: auto; padding-bottom: 80px; }
     
     .contact { border-bottom: 1px solid #f0f0f0; padding: 15px; }
@@ -30,17 +29,15 @@
     .info { overflow: hidden; flex: 1; }
     .info h3 { margin: 0; font-size: 17px; color: #111; font-weight: 500; }
     .info p { margin: 4px 0 0; font-size: 14px; color: #666; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    
-    /* Action Buttons */
     .contact-actions { display: flex; align-items: center; gap: 5px; }
-    .action-icon { background: none; border: none; font-size: 18px; cursor: pointer; opacity: 0.5; padding: 8px; transition: opacity 0.2s; }
-    .action-icon:hover { opacity: 1; }
+    .action-icon { background: none; border: none; font-size: 18px; cursor: pointer; opacity: 0.5; padding: 8px; }
     .delete-btn { color: #ff4444; }
     .edit-btn { color: #075e54; }
     
-    /* Sub-Contacts */
+    /* Sub-Contacts (Spy Badges) */
     .sub-contacts { padding-left: 65px; display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
     .sub-badge { background: #e8f5e9; color: #075e54; border: 1px solid #075e54; border-radius: 12px; padding: 4px 10px; font-size: 11px; cursor: pointer; display: flex; align-items: center; gap: 5px; }
+    .sub-badge:hover { background: #c8e6c9; }
     
     .fab { position: absolute; bottom: 20px; right: 20px; width: 60px; height: 60px; background: #25D366; border-radius: 50%; color: white; display: flex; align-items: center; justify-content: center; font-size: 30px; box-shadow: 0 4px 10px rgba(0,0,0,0.3); cursor: pointer; border: none; transition: transform 0.2s; }
     .fab:active { transform: scale(0.9); }
@@ -50,7 +47,7 @@
     #chat-screen.has-wallpaper::before { content: ""; position: absolute; inset: 0; background: rgba(0,0,0,0.6); pointer-events: none; }
 
     .chat-header { background: #075e54; color: white; padding: 10px 15px; display: flex; align-items: center; gap: 10px; box-shadow: 0 1px 2px rgba(0,0,0,0.1); z-index: 10; }
-    .back-btn { background: transparent; border: none; color: white; font-size: 24px; cursor: pointer; padding: 0 5px; }
+    .back-btn { background: transparent; border: none; color: white; font-size: 24px; cursor: pointer; padding: 0 5px; margin-right: 5px; }
     .header-profile { display: flex; align-items: center; gap: 10px; flex: 1; }
     .header-avatar { width: 40px; height: 40px; background: #fff; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #075e54; font-size: 20px; }
     .header-info h4 { margin: 0; font-size: 16px; font-weight: 500; }
@@ -112,7 +109,7 @@
   <!-- Chat Screen -->
   <div id="chat-screen">
     <div class="chat-header">
-      <button class="back-btn" id="back-btn" onclick="goBack()">←</button>
+      <button class="back-btn" onclick="goBack()">←</button>
       <div class="header-profile">
         <div class="header-avatar" id="chat-avatar">👤</div>
         <div class="header-info">
@@ -218,7 +215,7 @@
     function initAdminDashboard() {
       document.getElementById('contact-screen').style.display = 'flex';
       document.getElementById('header-role').innerText = "God Mode";
-      document.querySelector('.edit-self-btn').style.display = 'none'; // Admin no rename self yet
+      document.querySelector('.edit-self-btn').style.display = 'none'; 
       
       const q = query(collection(db, "users"), orderBy("created", "desc"));
       unsubscribeUsers = onSnapshot(q, (snap) => {
@@ -231,7 +228,7 @@
           const div = document.createElement('div');
           div.className = 'contact';
           div.innerHTML = `
-            <div class="contact-main" onclick="openChat('${u.collection}', '${u.name}', '${u.color}', true)">
+            <div class="contact-main" onclick="openChat('${u.collection}', '${u.name}', '${u.color}', false)">
               <div class="contact-left">
                 <div class="avatar" style="background:${u.color}">${u.name[0]}</div>
                 <div class="info"><h3>${u.name}</h3><p>Pass: ${uid}</p></div>
@@ -302,64 +299,6 @@
       container.appendChild(div);
     }
 
-    // --- RENAME LOGIC ---
-    window.renameSelf = async () => {
-      const newName = prompt("Enter new Display Name:", currentUserDisplay);
-      if (!newName || newName === currentUserDisplay) return;
-      
-      try {
-        // 1. Update User Profile
-        await updateDoc(doc(db, "users", currentUserId), { name: newName });
-        
-        // 2. Update Directory (Delete Old -> Create New) to keep it searchable
-        await deleteDoc(doc(db, "directory", currentUserDisplay.toLowerCase()));
-        await setDoc(doc(db, "directory", newName.toLowerCase()), { uid: currentUserId, name: newName });
-        
-        currentUserDisplay = newName;
-        document.getElementById('header-role').innerText = newName;
-        alert("Name updated!");
-      } catch(e) {
-        console.error(e);
-        alert("Update failed. Check internet.");
-      }
-    };
-
-    window.renameContact = async (e, contactId, oldName) => {
-      e.stopPropagation();
-      const newName = prompt("Rename this chat to:", oldName);
-      if (!newName) return;
-      await updateDoc(doc(db, `users/${currentUserId}/contacts`, contactId), { name: newName });
-    };
-
-    // --- ADD / DELETE ---
-    window.handleAddButton = async () => {
-      if(isAdmin) {
-        const name = prompt("New User Name:"); if (!name) return;
-        const password = prompt("Password (lowercase):").toLowerCase().trim(); if (!password) return;
-        const colors = ["#4ecdc4", "#ffe66d", "#1a535c", "#ff9f1c", "#ff6b6b"];
-        await setDoc(doc(db, "users", password), {
-          name: name, collection: "chats_" + Date.now(),
-          color: colors[Math.floor(Math.random()*colors.length)], created: serverTimestamp()
-        });
-        await setDoc(doc(db, "directory", name.toLowerCase()), { uid: password, name: name });
-      } else {
-        const targetName = prompt("Enter Name to add:"); if (!targetName) return;
-        try {
-          const dirSnap = await getDoc(doc(db, "directory", targetName.toLowerCase()));
-          if (!dirSnap.exists()) { alert("User not found."); return; }
-          const targetData = dirSnap.data();
-          const sharedRoomId = "private_" + [currentUserId, targetData.uid].sort().join("_");
-          const color = ["#4ecdc4", "#ffe66d", "#1a535c", "#ff9f1c", "#ff6b6b"][Math.floor(Math.random()*5)];
-          await addDoc(collection(db, `users/${currentUserId}/contacts`), { name: targetData.name, roomId: sharedRoomId, color: color });
-          await addDoc(collection(db, `users/${targetData.uid}/contacts`), { name: currentUserDisplay, roomId: sharedRoomId, color: color });
-          alert(`Added ${targetData.name}!`);
-        } catch (e) { alert("Error adding contact."); }
-      }
-    };
-
-    window.deleteUser = async (e, uid, name) => { e.stopPropagation(); if (confirm(`Delete User ${name}?`)) await deleteDoc(doc(db, "users", uid)); };
-    window.deleteContact = async (e, contactId) => { e.stopPropagation(); if (confirm("Remove this chat?")) await deleteDoc(doc(db, `users/${currentUserId}/contacts`, contactId)); };
-
     // --- CHAT LOGIC ---
     window.openChat = (roomId, name, color, asSpy) => {
       currentCollection = roomId;
@@ -372,17 +311,17 @@
       
       if (isSpying) {
         document.getElementById('input-area').classList.add('hidden');
-        document.getElementById('spy-indicator').style.display = 'block';
+        // Removed visual indicator for stealth
+        document.getElementById('spy-indicator').style.display = 'none'; 
       } else {
         document.getElementById('input-area').classList.remove('hidden');
         document.getElementById('spy-indicator').style.display = 'none';
       }
-      loadChat(); loadWallpaper(); initPresence();
+      loadChat(); loadWallpaper();
     };
 
     window.goBack = () => {
       if (unsubscribeChat) unsubscribeChat();
-      if (unsubscribeSettings) unsubscribeSettings();
       document.getElementById('chat-screen').style.display = 'none';
       document.getElementById('contact-screen').style.display = 'flex';
       currentCollection = null; cancelReply();
@@ -437,29 +376,72 @@
       });
     }
 
+    // RENAME & ACTIONS
+    window.renameSelf = async () => {
+      const newName = prompt("Enter new Display Name:", currentUserDisplay);
+      if (!newName || newName === currentUserDisplay) return;
+      try {
+        await updateDoc(doc(db, "users", currentUserId), { name: newName });
+        await deleteDoc(doc(db, "directory", currentUserDisplay.toLowerCase()));
+        await setDoc(doc(db, "directory", newName.toLowerCase()), { uid: currentUserId, name: newName });
+        currentUserDisplay = newName;
+        document.getElementById('header-role').innerText = newName;
+        alert("Name updated!");
+      } catch(e) { alert("Update failed."); }
+    };
+    window.renameContact = async (e, contactId, oldName) => {
+      e.stopPropagation();
+      const newName = prompt("Rename chat:", oldName);
+      if (!newName) return;
+      await updateDoc(doc(db, `users/${currentUserId}/contacts`, contactId), { name: newName });
+    };
+
+    window.handleAddButton = async () => {
+      if(isAdmin) {
+        const name = prompt("New User Name:"); if (!name) return;
+        const password = prompt("Password (lowercase):").toLowerCase().trim(); if (!password) return;
+        const colors = ["#4ecdc4", "#ffe66d", "#1a535c", "#ff9f1c", "#ff6b6b"];
+        await setDoc(doc(db, "users", password), {
+          name: name, collection: "chats_" + Date.now(),
+          color: colors[Math.floor(Math.random()*colors.length)], created: serverTimestamp()
+        });
+        await setDoc(doc(db, "directory", name.toLowerCase()), { uid: password, name: name });
+      } else {
+        const targetName = prompt("Enter Name to add:"); if (!targetName) return;
+        try {
+          const dirSnap = await getDoc(doc(db, "directory", targetName.toLowerCase()));
+          if (!dirSnap.exists()) { alert("User not found."); return; }
+          const targetData = dirSnap.data();
+          const sharedRoomId = "private_" + [currentUserId, targetData.uid].sort().join("_");
+          const color = ["#4ecdc4", "#ffe66d", "#1a535c", "#ff9f1c", "#ff6b6b"][Math.floor(Math.random()*5)];
+          await addDoc(collection(db, `users/${currentUserId}/contacts`), { name: targetData.name, roomId: sharedRoomId, color: color });
+          await addDoc(collection(db, `users/${targetData.uid}/contacts`), { name: currentUserDisplay, roomId: sharedRoomId, color: color });
+          alert(`Added ${targetData.name}!`);
+        } catch (e) { alert("Error adding contact."); }
+      }
+    };
+
+    window.deleteUser = async (e, uid, name) => { e.stopPropagation(); if (confirm(`Delete User ${name}?`)) await deleteDoc(doc(db, "users", uid)); };
+    window.deleteContact = async (e, contactId) => { e.stopPropagation(); if (confirm("Remove this chat?")) await deleteDoc(doc(db, `users/${currentUserId}/contacts`, contactId)); };
+
     // Utils
     window.startReply = (sender, text) => { replyTarget = { sender, text }; document.getElementById('reply-preview').style.display = 'flex'; document.getElementById('reply-to-name').textContent = "Replying to " + sender; document.getElementById('reply-to-text').textContent = text; document.getElementById('txt').focus(); };
     window.cancelReply = () => { replyTarget = null; document.getElementById('reply-preview').style.display = 'none'; };
-    function initPresence() { 
-        if (isAdmin && isSpying) { document.getElementById('chat-status').innerText = "Secret Mode"; return; } 
-        document.getElementById('chat-status').innerText = "Secure"; 
-        // Presence heartbeat removed for simplicity/security in groups
-    }
     function loadWallpaper() { 
-        unsubscribeSettings = onSnapshot(doc(db, currentCollection, "_settings"), (docSnap) => { 
+        getDoc(doc(db, currentCollection, "_settings")).then(docSnap => {
             const screen = document.getElementById('chat-screen'); 
             if (docSnap.exists() && docSnap.data().wallpaper) { 
                 screen.style.backgroundImage = `url('${docSnap.data().wallpaper}')`; screen.classList.add('has-wallpaper'); 
             } else { screen.style.backgroundImage = ''; screen.classList.remove('has-wallpaper'); } 
-        }); 
+        });
     }
     window.send = async () => { const txt = document.getElementById('txt'); const val = txt.value.trim(); if(val && currentCollection) { const payload = { text: val, sender: currentUserDisplay, type: 'text', time: serverTimestamp() }; if (replyTarget) { payload.reply = replyTarget; cancelReply(); } await addDoc(collection(db, currentCollection), payload); txt.value = ""; txt.style.height = '22px'; txt.focus(); } };
     window.handleImageUpload = (input) => { const file = input.files[0]; if (!file) return; processImage(file, (base64) => { addDoc(collection(db, currentCollection), { image: base64, sender: currentUserDisplay, type: 'image', time: serverTimestamp() }); }); input.value = ''; };
     window.handleWallpaperUpload = (input) => { const file = input.files[0]; if(!file) return; processImage(file, (base64) => setWallpaper(base64)); input.value = ''; document.getElementById('wp-modal').style.display = 'none'; };
     function processImage(file, callback) { const reader = new FileReader(); reader.onload = (e) => { const img = new Image(); img.src = e.target.result; img.onload = () => { const cvs = document.createElement('canvas'); const ctx = cvs.getContext('2d'); const sc = 800 / img.width; cvs.width = 800; cvs.height = img.height * sc; ctx.drawImage(img, 0, 0, cvs.width, cvs.height); callback(cvs.toDataURL('image/jpeg', 0.7)); } }; reader.readAsDataURL(file); }
-    async function setWallpaper(url) { await setDoc(doc(db, currentCollection, "_settings"), { wallpaper: url }, { merge: true }); }
+    async function setWallpaper(url) { await setDoc(doc(db, currentCollection, "_settings"), { wallpaper: url }, { merge: true }); loadWallpaper(); }
     window.useLastPhoto = () => { if(lastImageSent) { setWallpaper(lastImageSent); closeWallpaperModal(); } else alert("No photos!"); };
-    window.resetWallpaper = async () => { await setDoc(doc(db, currentCollection, "_settings"), { wallpaper: null }, { merge: true }); closeWallpaperModal(); };
+    window.resetWallpaper = async () => { await setDoc(doc(db, currentCollection, "_settings"), { wallpaper: null }, { merge: true }); closeWallpaperModal(); loadWallpaper(); };
     window.openWallpaperModal = () => document.getElementById('wp-modal').style.display = 'flex';
     window.closeWallpaperModal = () => document.getElementById('wp-modal').style.display = 'none';
     window.deleteMsg = async (id) => { if(currentCollection) await deleteDoc(doc(db, currentCollection, id)); };
