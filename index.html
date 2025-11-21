@@ -11,15 +11,16 @@
     /* --- LOCK SCREEN --- */
     #lock-screen { position: fixed; inset: 0; background: #fff; z-index: 100; display: flex; flex-direction: column; align-items: center; justify-content: center; transition: opacity 0.5s; }
     .lock-logo { width: 80px; height: 80px; background: #128C7E; border-radius: 15px; display: flex; align-items: center; justify-content: center; font-size: 40px; color: white; margin-bottom: 20px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
-    input.pass { padding: 15px; font-size: 18px; border-radius: 30px; border: 1px solid #ccc; text-align: center; margin-bottom: 15px; width: 80%; max-width: 300px; outline: none; }
-    button.btn { padding: 12px 30px; background: #075e54; color: white; border: none; border-radius: 30px; font-size: 16px; cursor: pointer; font-weight: bold; }
+    input.pass { padding: 15px; font-size: 16px; border-radius: 10px; border: 1px solid #ddd; text-align: center; margin-bottom: 10px; width: 80%; max-width: 300px; outline: none; background: #f9f9f9; }
+    input.pass:focus { border-color: #128C7E; background: #fff; }
+    button.btn { padding: 12px 30px; background: #075e54; color: white; border: none; border-radius: 30px; font-size: 16px; cursor: pointer; font-weight: bold; margin-top: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.2); }
+    button.btn:active { transform: scale(0.98); }
     
     /* --- CONTACT LIST --- */
     #contact-screen { display: none; flex-direction: column; height: 100%; background: #fff; position: relative; }
     .app-header { background: #075e54; color: white; padding: 15px 20px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 1px 3px rgba(0,0,0,0.2); z-index: 10; }
     .header-content h1 { margin: 0; font-size: 20px; font-weight: 500; display: flex; align-items: center; gap: 8px; }
     .edit-self-btn { background: none; border: none; color: rgba(255,255,255,0.7); font-size: 16px; cursor: pointer; }
-    .edit-self-btn:hover { color: white; }
     .contact-list { flex: 1; overflow-y: auto; padding-bottom: 80px; }
     
     .contact { border-bottom: 1px solid #f0f0f0; padding: 15px; }
@@ -30,14 +31,12 @@
     .info { overflow: hidden; flex: 1; }
     .info h3 { margin: 0; font-size: 17px; color: #111; font-weight: 500; }
     .info p { margin: 4px 0 0; font-size: 14px; color: #666; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    
     .contact-actions { display: flex; align-items: center; gap: 5px; }
-    .action-icon { background: none; border: none; font-size: 18px; cursor: pointer; opacity: 0.5; padding: 8px; transition: opacity 0.2s; }
-    .action-icon:hover { opacity: 1; }
+    .action-icon { background: none; border: none; font-size: 18px; cursor: pointer; opacity: 0.5; padding: 8px; }
     .delete-btn { color: #ff4444; }
     .edit-btn { color: #075e54; }
     
-    /* Sub-Contacts */
+    /* Sub-Contacts (Spy Badges) */
     .sub-contacts { padding-left: 65px; display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
     .sub-badge { background: #e8f5e9; color: #075e54; border: 1px solid #075e54; border-radius: 12px; padding: 4px 10px; font-size: 11px; cursor: pointer; display: flex; align-items: center; gap: 5px; }
     .sub-badge:hover { background: #c8e6c9; }
@@ -55,7 +54,8 @@
     .header-avatar { width: 40px; height: 40px; background: #fff; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #075e54; font-size: 20px; }
     .header-info h4 { margin: 0; font-size: 16px; font-weight: 500; }
     .header-status { font-size: 12px; opacity: 0.8; display: block; }
-    
+    #spy-indicator { display: none; background: #000; color: #0f0; font-size: 10px; padding: 2px 6px; border-radius: 4px; font-family: monospace; letter-spacing: 1px; border: 1px solid #0f0; }
+
     #messages { flex: 1; overflow-y: auto; padding: 15px; display: flex; flex-direction: column; gap: 4px; scroll-behavior: smooth; z-index: 1; }
     .msg { padding: 6px 10px; border-radius: 7.5px; max-width: 75%; width: fit-content; font-size: 15px; position: relative; box-shadow: 0 1px 1px rgba(0,0,0,0.1); line-height: 1.3; cursor: pointer; user-select: none; display: flex; flex-direction: column; }
     .msg.me { align-self: flex-end; background: #dcf8c6; border-top-right-radius: 0; align-items: flex-end;}
@@ -93,6 +93,7 @@
   <div id="lock-screen">
     <div class="lock-logo">🔒</div>
     <h2 style="color:#444; margin-bottom:20px;">Secure Access</h2>
+    <input type="text" id="username" class="pass" placeholder="Username" autocomplete="off">
     <input type="password" id="pass" class="pass" placeholder="Password" autocomplete="off">
     <button class="btn" onclick="attemptLogin()">Unlock</button>
     <p id="error" style="color:red; margin-top:10px; opacity:0; font-size:14px;">Access Denied</p>
@@ -167,7 +168,7 @@
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-app.js";
     import { getAuth, signInWithEmailAndPassword, signInAnonymously } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-auth.js";
-    import { getFirestore, collection, addDoc, query, getDoc, getDocs, orderBy, onSnapshot, serverTimestamp, deleteDoc, doc, setDoc, updateDoc } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore.js";
+    import { getFirestore, collection, addDoc, query, getDoc, getDocs, orderBy, onSnapshot, serverTimestamp, deleteDoc, doc, setDoc, updateDoc, deleteField } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore.js";
 
     const firebaseConfig = {
       apiKey: "AIzaSyDznEmz6rxBJ_2QAgWIoEzWPBpM5QvocRQ",
@@ -193,20 +194,26 @@
     let unsubscribeChat, unsubscribeUsers, unsubscribeSettings, unsubscribePresence, presenceInterval;
     let lastImageSent, replyTarget;
 
-    // --- 1. LOGIN ---
+    // --- 1. LOGIN LOGIC (LUCIFER UPDATE) ---
     window.attemptLogin = async () => {
+      const username = document.getElementById('username').value.trim().toLowerCase();
       const p = document.getElementById('pass').value.trim();
+      const errorMsg = document.getElementById('error');
+
       try {
-        await signInWithEmailAndPassword(auth, ADMIN_EMAIL, p)
-          .then(() => { 
+        // GOD MODE CHECK
+        if (username === 'lucifer') {
+            await signInWithEmailAndPassword(auth, ADMIN_EMAIL, p);
             isAdmin = true; 
             currentUserDisplay = "Ishan";
             unlock(); 
-            initAdminDashboard(); 
-          })
-          .catch(async () => {
+            initAdminDashboard();
+        } 
+        // GUEST LOGIN
+        else {
             await signInAnonymously(auth);
             const snap = await getDoc(doc(db, "users", p.toLowerCase()));
+            
             if (snap.exists()) { 
               isAdmin = false; 
               guestData = snap.data(); 
@@ -214,12 +221,15 @@
               currentUserId = p.toLowerCase();
               unlock(); 
               initGuestDashboard(); 
-            } 
-            else throw "Invalid";
-          });
+            } else {
+              throw "Invalid User ID";
+            }
+        }
       } catch (e) {
-        document.getElementById('error').style.opacity = '1';
-        setTimeout(() => document.getElementById('error').style.opacity = '0', 2000);
+        console.error(e);
+        errorMsg.innerText = "Access Denied";
+        errorMsg.style.opacity = '1';
+        setTimeout(() => errorMsg.style.opacity = '0', 2000);
       }
     };
 
@@ -254,6 +264,7 @@
             <div class="sub-contacts" id="subs-${uid}"></div>`;
           list.appendChild(div);
 
+          // SPY LOGIC
           const subContainer = document.getElementById(`subs-${uid}`);
           const subQ = query(collection(db, `users/${uid}/contacts`));
           const subSnap = await getDocs(subQ);
@@ -276,10 +287,8 @@
       
       const list = document.getElementById('contact-list-container');
       
-      // Default Admin Chat
       renderGuestContact(list, "Ishan ❤️", "#075e54", "Private Chat", guestData.collection, null);
 
-      // Real-time Contacts
       const subQ = query(collection(db, `users/${currentUserId}/contacts`));
       onSnapshot(subQ, (snap) => {
         list.innerHTML = "";
@@ -313,7 +322,7 @@
       container.appendChild(div);
     }
 
-    // --- RENAME & PASSWORD LOGIC ---
+    // --- RENAME & PASSWORD ---
     window.openProfileModal = () => document.getElementById('profile-modal').style.display = 'flex';
     
     window.renameSelf = async () => {
@@ -321,7 +330,6 @@
       if (!newName || newName === currentUserDisplay) return;
       try {
         await updateDoc(doc(db, "users", currentUserId), { name: newName });
-        // Update directory for lookup
         await deleteDoc(doc(db, "directory", currentUserDisplay.toLowerCase()));
         await setDoc(doc(db, "directory", newName.toLowerCase()), { uid: currentUserId, name: newName });
         
@@ -336,18 +344,17 @@
       const newPass = prompt("Enter NEW Password (lowercase, no spaces):")?.toLowerCase().trim();
       if(!newPass || newPass.length < 3) return alert("Password too short.");
       
-      // Check if ID taken
       const check = await getDoc(doc(db, "users", newPass));
-      if(check.exists()) return alert("Password already taken. Choose another.");
+      if(check.exists()) return alert("Password already taken.");
 
       if(!confirm(`Change password to '${newPass}'? This will log you out.`)) return;
 
       try {
-        // 1. Create New User Doc (Clone)
+        // 1. Clone User
         await setDoc(doc(db, "users", newPass), guestData);
-        await updateDoc(doc(db, "users", newPass), { created: serverTimestamp() }); // Update timestamp
+        await updateDoc(doc(db, "users", newPass), { created: serverTimestamp() });
         
-        // 2. Copy Contacts
+        // 2. Clone Contacts
         const oldContacts = await getDocs(collection(db, `users/${currentUserId}/contacts`));
         oldContacts.forEach(async c => {
            await addDoc(collection(db, `users/${newPass}/contacts`), c.data());
@@ -356,7 +363,7 @@
         // 3. Update Directory
         await updateDoc(doc(db, "directory", currentUserDisplay.toLowerCase()), { uid: newPass });
 
-        // 4. Delete Old User (Triggered last to be safe)
+        // 4. Delete Old User
         await deleteDoc(doc(db, "users", currentUserId));
         
         alert("Password Changed! Please login again.");
